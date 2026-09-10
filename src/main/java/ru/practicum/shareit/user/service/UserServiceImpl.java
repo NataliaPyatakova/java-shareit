@@ -35,7 +35,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto save(NewUserDto user) {
         log.info("save user {}", user);
-        findByEmail(user.getEmail());
+        checkEmailAndReturnErrorIfExists(user.getEmail());
         return UserMapper.mapToUserDto(userRepository.save(UserMapper.mapToUser(user)));
     }
 
@@ -43,7 +43,7 @@ public class UserServiceImpl implements UserService {
     public UserDto update(Long id, UpdateUserDto user) {
         log.info("update user {}", user);
         User foundedUser = findUserById(id);
-        findByEmail(user.getEmail());
+        checkEmailAndReturnErrorIfExists(user.getEmail());
         return UserMapper.mapToUserDto(userRepository.update(UserMapper.mapToUserForUpdate(foundedUser, user)));
     }
 
@@ -54,7 +54,7 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteUser(id);
     }
 
-    private void findByEmail(String email) {
+    private void checkEmailAndReturnErrorIfExists(String email) {
         Optional<User> user = userRepository.findByEmail(email);
         if (user.isPresent()) {
             throw new ValidationException("Пользователь с email = " + email + " уже существует");

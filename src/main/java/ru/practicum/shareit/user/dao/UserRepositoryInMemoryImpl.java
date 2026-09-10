@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public class UserRepositoryInMemoryImpl implements UserRepository {
 
-    List<User> users = new ArrayList<>();
+    private final List<User> users = new ArrayList<>();
 
     @Override
     public List<User> findAll() {

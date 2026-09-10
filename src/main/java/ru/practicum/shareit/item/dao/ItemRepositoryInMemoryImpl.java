@@ -8,8 +8,8 @@ import java.util.*;
 @Repository
 public class ItemRepositoryInMemoryImpl implements ItemRepository {
 
-    Map<Long, List<Item>> itemsByUser = new HashMap<>();
-    List<Item> allItems = new ArrayList<>();
+    private final Map<Long, List<Item>> itemsByUser = new HashMap<>();
+    private final List<Item> allItems = new ArrayList<>();
 
     @Override
     public Item save(Item item) {

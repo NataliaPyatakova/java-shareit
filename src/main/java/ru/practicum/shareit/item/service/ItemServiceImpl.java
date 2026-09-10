@@ -65,7 +65,3 @@ public class ItemServiceImpl implements ItemService {
                 .orElseThrow(() -> new NotFoundException("Вещь с id = " + itemId + " не найден"));
     }
 }
-
-
-
-

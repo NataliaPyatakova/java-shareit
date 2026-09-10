@@ -7,10 +7,8 @@ import lombok.Data;
 @Data
 public class NewItemDto {
 
-    @NotNull
     @NotBlank
     private String name;
-    @NotNull
     @NotBlank
     private String description;
     @NotNull
