@@ -18,6 +18,14 @@ public class UserMapper {
         return dto;
     }
 
+    public static User mapToUser(UserDto userDto) {
+        User user = new User();
+        user.setId(userDto.getId());
+        user.setEmail(userDto.getEmail());
+        user.setName(userDto.getName());
+        return user;
+    }
+
     public static User mapToUser(NewUserDto userDto) {
         User user = new User();
         user.setEmail(userDto.getEmail());
