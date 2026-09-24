@@ -63,6 +63,7 @@ public class ItemServiceImpl implements ItemService {
         List<Long> itemIds = items.stream().map(Item::getId).toList();
         List<BookingDto> bookingList = bookingService.findAllByItemIdInAndState(itemIds, BookingProcessState.APPROVED);
         Map<Long, LocalDateTime> itemLastBooking = new HashMap<>();
+        Map<Long, LocalDateTime> itemLNextBooking = new HashMap<>();
         items.forEach(item ->
                 itemLastBooking.put(item.getId(), bookingList.stream()
                         .filter(bookingDto -> bookingDto.getItem().getId().equals(item.getId()))
@@ -70,7 +71,7 @@ public class ItemServiceImpl implements ItemService {
                         .filter(end -> end.toLocalDate().isBefore(LocalDate.now()))
                         .max(LocalDateTime::compareTo)
                         .orElse(null)));
-        Map<Long, LocalDateTime> itemLNextBooking = new HashMap<>();
+
         items.forEach(item ->
                 itemLNextBooking.put(item.getId(), bookingList.stream()
                         .filter(bookingDto -> bookingDto.getItem().getId().equals(item.getId()))
@@ -88,20 +89,24 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    public GetItemDto findGetItemDtoByItemId(long itemId) {
+    public GetItemDto findGetItemDtoByItemId(long itemId, long userId) {
         log.info("findGetItemDtoByItemId {}", itemId);
         Item item = findItemById(itemId);
-        List<BookingDto> bookingList = bookingService.findByItemIdAndState(itemId, BookingProcessState.APPROVED);
-        LocalDateTime lastBooking = bookingList.stream()
-                .map(BookingDto::getEnd)
-                .filter(end -> end.toLocalDate().isBefore(LocalDate.now()))
-                .max(LocalDateTime::compareTo)
-                .orElse(null);
-        LocalDateTime nextBooking = bookingList.stream()
-                .map(BookingDto::getStart)
-                .filter(start -> start.toLocalDate().isAfter(LocalDate.now()))
-                .min(LocalDateTime::compareTo)
-                .orElse(null);
+        LocalDateTime lastBooking = null;
+        LocalDateTime nextBooking = null;
+        if (item.getUser().getId().equals(userId)) {  //читаем даты только для владельца вещи
+            List<BookingDto> bookingList = bookingService.findByItemIdAndState(itemId, BookingProcessState.APPROVED);
+            lastBooking = bookingList.stream()
+                    .map(BookingDto::getEnd)
+                    .filter(end -> end.toLocalDate().isBefore(LocalDate.now()))
+                    .max(LocalDateTime::compareTo)
+                    .orElse(null);
+            nextBooking = bookingList.stream()
+                    .map(BookingDto::getStart)
+                    .filter(start -> start.toLocalDate().isAfter(LocalDate.now()))
+                    .min(LocalDateTime::compareTo)
+                    .orElse(null);
+        }
         List<Long> itemIds = new ArrayList<>();
         itemIds.add(item.getId());
         List<Comment> listComments = commentRepository.findAllByItemIdIn(itemIds);

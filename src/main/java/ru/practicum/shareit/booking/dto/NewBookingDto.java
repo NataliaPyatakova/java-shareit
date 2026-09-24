@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 public class NewBookingDto {
 
     @NotNull
-    long itemId;
+    private long itemId;
     @NotNull
-    LocalDateTime start;
+    private LocalDateTime start;
     @NotNull
-    LocalDateTime end;
+    private LocalDateTime end;
 }

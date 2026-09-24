@@ -20,6 +20,7 @@ import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -58,7 +59,7 @@ public class BookingServiceImpl implements BookingService {
             throw new WrongUserException("Изменять статус бронирования может только владелец вещи");
         }
         booking.setState(approved ? BookingProcessState.APPROVED : BookingProcessState.REJECTED);
-        return BookingMapper.mapToBookingDto(bookingRepository.save(booking));
+        return BookingMapper.mapToBookingDto(booking);
     }
 
     @Override
@@ -141,10 +142,10 @@ public class BookingServiceImpl implements BookingService {
         if (newBookingDto.getEnd().isBefore(newBookingDto.getStart())) {
             throw new BadRequestException("Дата окончания бронирования не может быть раньше даты начала");
         }
-        if (newBookingDto.getEnd().isBefore(LocalDateTime.now())) {
+        if (newBookingDto.getEnd().toLocalDate().isBefore(LocalDate.now())) {
             throw new BadRequestException("Дата окончания бронирования не может быть раньше текущей даты");
         }
-        if (newBookingDto.getStart().isBefore(LocalDateTime.now())) {
+        if (newBookingDto.getStart().toLocalDate().isBefore(LocalDate.now())) {
             throw new BadRequestException("Дата начала бронирования не может быть раньше текущей даты");
         }
     }
