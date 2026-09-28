@@ -3,6 +3,7 @@ package ru.practicum.shareit.user.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dao.UserRepository;
@@ -18,6 +19,7 @@ import java.util.Optional;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -33,6 +35,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserDto save(NewUserDto user) {
         log.info("save user {}", user);
         checkEmailAndReturnErrorIfExists(user.getEmail());
@@ -40,21 +43,24 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserDto update(Long id, UpdateUserDto user) {
         log.info("update user {}", user);
         User foundedUser = findUserById(id);
         checkEmailAndReturnErrorIfExists(user.getEmail());
-        return UserMapper.mapToUserDto(userRepository.update(UserMapper.mapToUserForUpdate(foundedUser, user)));
+        return UserMapper.mapToUserDto(userRepository.save(UserMapper.mapToUserForUpdate(foundedUser, user)));
     }
 
     @Override
+    @Transactional
     public void deleteUser(Long id) {
         log.info("delete user id {}", id);
         findById(id);
-        userRepository.deleteUser(id);
+        userRepository.deleteById(id);
     }
 
     private void checkEmailAndReturnErrorIfExists(String email) {
+        log.info("checkEmailAndReturnErrorIfExists {}", email);
         Optional<User> user = userRepository.findByEmail(email);
         if (user.isPresent()) {
             throw new ValidationException("Пользователь с email = " + email + " уже существует");
