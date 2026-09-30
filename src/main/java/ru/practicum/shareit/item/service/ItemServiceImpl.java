@@ -15,6 +15,8 @@ import ru.practicum.shareit.item.mapper.CommentMapper;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.request.dao.ItemRequestRepository;
+import ru.practicum.shareit.request.model.ItemRequest;
 import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
@@ -36,13 +38,19 @@ public class ItemServiceImpl implements ItemService {
     private final UserService userService;
     private final CommentRepository commentRepository;
     private final BookingService bookingService;
+    private final ItemRequestRepository itemRequestRepository;
 
     @Override
     @Transactional
     public ItemDto save(NewItemDto itemDto, long userId) {
         log.info("save item {} for userId {}", itemDto, userId);
         User user = UserMapper.mapToUser(userService.findById(userId));
-        return ItemMapper.mapToItemDto(itemRepository.save(ItemMapper.mapToItemForCreate(itemDto, user)));
+        ItemRequest request = null;
+        if (itemDto.getRequestId() != null) {
+            request = itemRequestRepository.findById(itemDto.getRequestId())
+                    .orElseThrow(() -> new NotFoundException("Запрос с id = " + itemDto.getRequestId() + " не найден"));
+        }
+        return ItemMapper.mapToItemDto(itemRepository.save(ItemMapper.mapToItemForCreate(itemDto, user, request)));
     }
 
     @Override
@@ -82,7 +90,8 @@ public class ItemServiceImpl implements ItemService {
         List<Comment> listComments = commentRepository.findAllByItemIdIn(itemIds);
         return items.stream()
                 .map(item -> ItemMapper.mapToGetItemDto(item,
-                        listComments.stream().filter(comment -> comment.getItem().getId().equals(item.getId())).toList(),
+                        listComments.stream()
+                                .filter(comment -> comment.getItem().getId().equals(item.getId())).toList(),
                         itemLastBooking.get(item.getId()),
                         itemLNextBooking.get(item.getId())))
                 .toList();
@@ -131,6 +140,18 @@ public class ItemServiceImpl implements ItemService {
         bookingService.findPastBookingByBookerIdAndItemId(bookerId, itemId);
         Comment comment = commentRepository.save(CommentMapper.commentDtoToCommentForCreate(user, item, newCommentDto));
         return CommentMapper.commentToCommentDto(comment);
+    }
+
+    @Override
+    public List<ItemDto> findAllByRequestId(long requestId) {
+        log.info("findAllByRequestId {}", requestId);
+        return itemRepository.findAllByItemRequestId(requestId).stream().map(ItemMapper::mapToItemDto).toList();
+    }
+
+    @Override
+    public List<Item> findAllByItemRequestIdIn(List<Long> itemRequestIds) {
+        log.info("findAllByItemRequestIdIn");
+        return itemRepository.findAllByItemRequestIdIn(itemRequestIds);
     }
 
     private Item findItemById(long itemId) {

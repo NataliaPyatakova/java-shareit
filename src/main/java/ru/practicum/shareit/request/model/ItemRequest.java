@@ -1,18 +1,19 @@
-package ru.practicum.shareit.item.model;
+package ru.practicum.shareit.request.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import ru.practicum.shareit.request.model.ItemRequest;
 import ru.practicum.shareit.user.model.User;
 
+import java.time.LocalDateTime;
+
 @Entity
-@Table(name = "items")
+@Table(name = "item_requests")
 @Getter
 @Setter
 @ToString
-public class Item {
+public class ItemRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,25 +24,17 @@ public class Item {
     @ToString.Exclude
     private User user;
 
-    @Column(name = "name", nullable = false)
-    private String name;
-
     @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(name = "available", nullable = false)
-    private Boolean available;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "item_request_id")
-    @ToString.Exclude
-    private ItemRequest itemRequest;
+    @Column(name = "date_created", nullable = false)
+    private LocalDateTime dateCreated;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Item)) return false;
-        return id != null && id.equals(((Item) o).getId());
+        if (!(o instanceof ItemRequest)) return false;
+        return id != null && id.equals(((ItemRequest) o).getId());
     }
 
     @Override

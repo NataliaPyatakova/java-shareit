@@ -8,6 +8,7 @@ import ru.practicum.shareit.item.dto.NewItemDto;
 import ru.practicum.shareit.item.dto.UpdateItemDto;
 import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.request.model.ItemRequest;
 import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
@@ -40,12 +41,13 @@ public class ItemMapper {
         return dto;
     }
 
-    public static Item mapToItemForCreate(NewItemDto itemDto, User user) {
+    public static Item mapToItemForCreate(NewItemDto itemDto, User user, ItemRequest request) {
         Item item = new Item();
         item.setUser(user);
         item.setName(itemDto.getName());
         item.setDescription(itemDto.getDescription());
         item.setAvailable(itemDto.getAvailable());
+        item.setItemRequest(request);
         return item;
     }
 
