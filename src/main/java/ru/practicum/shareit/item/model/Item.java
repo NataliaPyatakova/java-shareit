@@ -1,6 +1,7 @@
 package ru.practicum.shareit.item.model;
 
 import jakarta.persistence.*;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -12,6 +13,7 @@ import ru.practicum.shareit.user.model.User;
 @Getter
 @Setter
 @ToString
+@EqualsAndHashCode
 public class Item {
 
     @Id
@@ -36,16 +38,4 @@ public class Item {
     @JoinColumn(name = "item_request_id")
     @ToString.Exclude
     private ItemRequest itemRequest;
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Item)) return false;
-        return id != null && id.equals(((Item) o).getId());
-    }
-
-    @Override
-    public int hashCode() {
-        return getClass().hashCode();
-    }
 }

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS item_requests (
     description VARCHAR(512) NOT NULL,
     date_created TIMESTAMP NOT NULL,
     CONSTRAINT pk_item_requests PRIMARY KEY (id),
-    CONSTRAINT fk_items_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_item_requests_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS items (
