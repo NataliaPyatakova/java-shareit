@@ -63,6 +63,30 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
+    public GetItemDto findGetItemDtoByItemId(long itemId, long userId) {
+        log.info("findGetItemDtoByItemId {}", itemId);
+        Item item = findItemById(itemId);
+        LocalDateTime lastBooking = null;
+        LocalDateTime nextBooking = null;
+        if (item.getUser().getId().equals(userId)) {  //читаем даты только для владельца вещи
+            List<BookingDto> bookingList = bookingService.findByItemIdAndState(itemId, BookingProcessState.APPROVED);
+            lastBooking = bookingList.stream()
+                    .map(BookingDto::getEnd)
+                    .filter(this::checkEndDate)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(null);
+            nextBooking = bookingList.stream()
+                    .map(BookingDto::getStart)
+                    .filter(this::checkStartDate)
+                    .min(LocalDateTime::compareTo)
+                    .orElse(null);
+        }
+        List<Long> itemIds = new ArrayList<>();
+        itemIds.add(item.getId());
+        List<Comment> listComments = commentRepository.findAllByItemIdIn(itemIds);
+        return ItemMapper.mapToGetItemDto(item, listComments, lastBooking, nextBooking);
+    }
+    @Override
     public List<GetItemDto> findAllByUserId(long userId) {
         log.info("findAllByUserId {}", userId);
         userService.findById(userId);
@@ -93,31 +117,6 @@ public class ItemServiceImpl implements ItemService {
                         itemLastBooking.get(item.getId()),
                         itemLNextBooking.get(item.getId())))
                 .toList();
-    }
-
-    @Override
-    public GetItemDto findGetItemDtoByItemId(long itemId, long userId) {
-        log.info("findGetItemDtoByItemId {}", itemId);
-        Item item = findItemById(itemId);
-        LocalDateTime lastBooking = null;
-        LocalDateTime nextBooking = null;
-        if (item.getUser().getId().equals(userId)) {  //читаем даты только для владельца вещи
-            List<BookingDto> bookingList = bookingService.findByItemIdAndState(itemId, BookingProcessState.APPROVED);
-            lastBooking = bookingList.stream()
-                    .map(BookingDto::getEnd)
-                    .filter(this::checkEndDate)
-                    .max(LocalDateTime::compareTo)
-                    .orElse(null);
-            nextBooking = bookingList.stream()
-                    .map(BookingDto::getStart)
-                    .filter(this::checkStartDate)
-                    .min(LocalDateTime::compareTo)
-                    .orElse(null);
-        }
-        List<Long> itemIds = new ArrayList<>();
-        itemIds.add(item.getId());
-        List<Comment> listComments = commentRepository.findAllByItemIdIn(itemIds);
-        return ItemMapper.mapToGetItemDto(item, listComments, lastBooking, nextBooking);
     }
 
     @Override
