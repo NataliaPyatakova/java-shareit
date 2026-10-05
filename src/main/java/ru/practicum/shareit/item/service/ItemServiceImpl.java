@@ -21,7 +21,6 @@ import ru.practicum.shareit.user.mapper.UserMapper;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.service.UserService;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,15 +75,14 @@ public class ItemServiceImpl implements ItemService {
                 itemLastBooking.put(item.getId(), bookingList.stream()
                         .filter(bookingDto -> bookingDto.getItem().getId().equals(item.getId()))
                         .map(BookingDto::getEnd)
-                        .filter(end -> end.toLocalDate().isBefore(LocalDate.now()))
+                        .filter(this::checkEndDate)
                         .max(LocalDateTime::compareTo)
                         .orElse(null)));
-
         items.forEach(item ->
                 itemLNextBooking.put(item.getId(), bookingList.stream()
                         .filter(bookingDto -> bookingDto.getItem().getId().equals(item.getId()))
                         .map(BookingDto::getStart)
-                        .filter(end -> end.toLocalDate().isBefore(LocalDate.now()))
+                        .filter(this::checkStartDate)
                         .min(LocalDateTime::compareTo)
                         .orElse(null)));
         List<Comment> listComments = commentRepository.findAllByItemIdIn(itemIds);
@@ -107,12 +105,12 @@ public class ItemServiceImpl implements ItemService {
             List<BookingDto> bookingList = bookingService.findByItemIdAndState(itemId, BookingProcessState.APPROVED);
             lastBooking = bookingList.stream()
                     .map(BookingDto::getEnd)
-                    .filter(end -> end.toLocalDate().isBefore(LocalDate.now()))
+                    .filter(this::checkEndDate)
                     .max(LocalDateTime::compareTo)
                     .orElse(null);
             nextBooking = bookingList.stream()
                     .map(BookingDto::getStart)
-                    .filter(start -> start.toLocalDate().isAfter(LocalDate.now()))
+                    .filter(this::checkStartDate)
                     .min(LocalDateTime::compareTo)
                     .orElse(null);
         }
@@ -145,6 +143,8 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public List<ItemDto> findAllByRequestId(long requestId) {
         log.info("findAllByRequestId {}", requestId);
+        itemRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NotFoundException("Запрос с id = " + requestId + " не найден"));
         return itemRepository.findAllByItemRequestId(requestId).stream().map(ItemMapper::mapToItemDto).toList();
     }
 
@@ -157,6 +157,16 @@ public class ItemServiceImpl implements ItemService {
     private Item findItemById(long itemId) {
         log.info("findItemById {}", itemId);
         return itemRepository.findById(itemId)
-                .orElseThrow(() -> new NotFoundException("Вещь с id = " + itemId + " не найден"));
+                .orElseThrow(() -> new NotFoundException("Вещь с id = " + itemId + " не найдена"));
+    }
+
+    private boolean checkStartDate(LocalDateTime startDate) {
+        log.info("checkStartDate {}", startDate);
+        return startDate.isAfter(LocalDateTime.now());
+    }
+
+    private boolean checkEndDate(LocalDateTime endDate) {
+        log.info("checkEndDate {}", endDate);
+        return endDate.isBefore(LocalDateTime.now());
     }
 }

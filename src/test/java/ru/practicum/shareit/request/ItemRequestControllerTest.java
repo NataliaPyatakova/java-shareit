@@ -1,6 +1,7 @@
-package ru.practicum.shareit;
+package ru.practicum.shareit.request;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -8,7 +9,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.request.ItemRequestController;
 import ru.practicum.shareit.request.dto.GetItemRequestDto;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
 import ru.practicum.shareit.request.dto.NewItemRequestDto;
@@ -37,13 +37,17 @@ public class ItemRequestControllerTest {
     @MockBean
     private ItemRequestService itemRequestService;
 
-    private final ItemDto itemDto = new ItemDto().setId(1L).setName("test").setDescription("test");
+    private final ItemDto itemDto = new ItemDto()
+            .setId(1L)
+            .setName("test")
+            .setDescription("test");
     private final List<ItemDto> items = new ArrayList<>();
     private final ItemRequestDto itemRequestDto = new ItemRequestDto()
             .setId(1L)
             .setDescription("test")
             .setCreated(LocalDateTime.now());
-    private final NewItemRequestDto newItemRequestDto = new NewItemRequestDto().setDescription("test");
+    private final NewItemRequestDto newItemRequestDto = new NewItemRequestDto()
+            .setDescription("test");
     private final GetItemRequestDto getItemRequestDto = new GetItemRequestDto()
             .setId(1L)
             .setCreated(LocalDateTime.now())
@@ -53,6 +57,7 @@ public class ItemRequestControllerTest {
     List<GetItemRequestDto> getItemRequestDtoList = new ArrayList<>();
 
     @Test
+    @DisplayName("Post requests")
     public void testSave() throws Exception {
         when(itemRequestService.save(newItemRequestDto, 1L)).thenReturn(itemRequestDto);
         mockMvc.perform(post("/requests")
@@ -65,7 +70,8 @@ public class ItemRequestControllerTest {
     }
 
     @Test
-    public void testFindById() throws Exception {
+    @DisplayName("Get requests по Id")
+    public void testFindGetItemRequestDtoById() throws Exception {
         items.add(itemDto);
         when(itemRequestService.findGetItemRequestDtoById(getItemRequestDto.getId())).thenReturn(getItemRequestDto);
         mockMvc.perform(get("/requests/" + getItemRequestDto.getId()))
@@ -78,6 +84,7 @@ public class ItemRequestControllerTest {
     }
 
     @Test
+    @DisplayName("Get requests по id пользователя")
     public void testFindGetItemRequestDtoByUserId() throws Exception {
         items.add(itemDto);
         getItemRequestDtoList.add(getItemRequestDto);
@@ -93,6 +100,7 @@ public class ItemRequestControllerTest {
     }
 
     @Test
+    @DisplayName("Get requests все")
     public void testFindAllItemRequestDto() throws Exception {
         itemRequestDtoList.add(itemRequestDto);
         when(itemRequestService.findAllItemRequestDto()).thenReturn(itemRequestDtoList);
@@ -100,5 +108,34 @@ public class ItemRequestControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.[0].id", is(itemRequestDto.getId()), Long.class))
                 .andExpect(jsonPath("$.[0].description", is(itemRequestDto.getDescription())));
+    }
+
+    @Test
+    @DisplayName("Post requests - ошибка null описание")
+    public void testPostWithNoEmail() throws Exception {
+        newItemRequestDto.setDescription(null);
+        mockMvc.perform(post("/requests")
+                        .content(mapper.writeValueAsString(newItemRequestDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", "1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post requests - ошибка пустой описание")
+    public void testPostWithEmptyEmail() throws Exception {
+        newItemRequestDto.setDescription("");
+        mockMvc.perform(post("/requests")
+                        .content(mapper.writeValueAsString(newItemRequestDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", "1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Get requests по Id - без id")
+    public void testFindGetItemRequestDtoByIdWithNoId() throws Exception {
+        mockMvc.perform(get("/requests/"))
+                .andExpect(status().is5xxServerError());
     }
 }

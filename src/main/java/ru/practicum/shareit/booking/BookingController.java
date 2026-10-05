@@ -29,7 +29,7 @@ public class BookingController {
 
     @PatchMapping("/{bookingId}")
     public BookingDto update(@RequestHeader("X-Sharer-User-Id") long userId,
-                             @PathVariable long bookingId,
+                             @PathVariable @NotNull long bookingId,
                              @RequestParam boolean approved) {
         return bookingService.update(bookingId, userId, approved);
     }
@@ -48,7 +48,7 @@ public class BookingController {
 
     @GetMapping("/owner")
     public List<BookingDto> findByOwnerIdAndState(@RequestHeader("X-Sharer-User-Id") long userId,
-                                                  @RequestParam(value = "state", defaultValue = "ALL")  BookingStateSearch state) {
+                                                  @RequestParam(value = "state", defaultValue = "ALL") BookingStateSearch state) {
         return bookingService.findByOwnerIdAndState(userId, state);
     }
 }

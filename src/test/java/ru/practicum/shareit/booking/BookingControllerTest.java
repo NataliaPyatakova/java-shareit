@@ -1,13 +1,13 @@
-package ru.practicum.shareit;
+package ru.practicum.shareit.booking;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.practicum.shareit.booking.BookingController;
 import ru.practicum.shareit.booking.dto.BookingDto;
 import ru.practicum.shareit.booking.dto.NewBookingDto;
 import ru.practicum.shareit.booking.enumeration.BookingProcessState;
@@ -71,6 +71,7 @@ public class BookingControllerTest {
     private final List<BookingDto> listBookingDto = new ArrayList<>();
 
     @Test
+    @DisplayName("Post bookings")
     public void testSave() throws Exception {
         when(bookingService.save(newBookingDto, userDto.getId())).thenReturn(bookingDto);
         mockMvc.perform(post("/bookings")
@@ -87,6 +88,7 @@ public class BookingControllerTest {
     }
 
     @Test
+    @DisplayName("Patch bookings")
     public void testUpdate() throws Exception {
         when(bookingService.update(bookingDto.getId(), userDto.getId(), true)).thenReturn(updatedBookingDto);
         mockMvc.perform(patch("/bookings/" + bookingDto.getId())
@@ -103,6 +105,7 @@ public class BookingControllerTest {
     }
 
     @Test
+    @DisplayName("Get bookings by Id")
     public void testFindById() throws Exception {
         when(bookingService.findById(bookingDto.getId(), userDto.getId())).thenReturn(bookingDto);
         mockMvc.perform(get("/bookings/" + bookingDto.getId())
@@ -117,6 +120,7 @@ public class BookingControllerTest {
     }
 
     @Test
+    @DisplayName("Get bookings по букеру и состоянию")
     public void testFindByBookerIdAndState() throws Exception {
         listBookingDto.add(bookingDto);
         when(bookingService.findByBookerIdAndState(userDto.getId(), BookingStateSearch.ALL)).thenReturn(listBookingDto);
@@ -133,6 +137,7 @@ public class BookingControllerTest {
     }
 
     @Test
+    @DisplayName("Get bookings по владельцу и состоянию")
     public void testFindByOwnerIdAndState() throws Exception {
         listBookingDto.add(bookingDto);
         when(bookingService.findByOwnerIdAndState(userDto.getId(), BookingStateSearch.ALL)).thenReturn(listBookingDto);
@@ -146,5 +151,51 @@ public class BookingControllerTest {
                 .andExpect(jsonPath("$.[0].booker.id", is(userDto.getId()), Long.class))
                 .andExpect(jsonPath("$.[0].booker.name", is(userDto.getName())))
                 .andExpect(jsonPath("$.[0].status", is(BookingProcessState.WAITING.toString())));
+    }
+
+    @Test
+    @DisplayName("Post bookings - без вещи")
+    public void testSaveWithNoItemId() throws Exception {
+        newBookingDto.setItemId(null);
+        mockMvc.perform(post("/bookings")
+                        .content(mapper.writeValueAsString(newBookingDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", userDto.getId().toString()))
+                .andExpect(status().isBadRequest());
+
+    }
+
+    @Test
+    @DisplayName("Post bookings - без начала")
+    public void testSaveWithNoStart() throws Exception {
+        newBookingDto.setStart(null);
+        mockMvc.perform(post("/bookings")
+                        .content(mapper.writeValueAsString(newBookingDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", userDto.getId().toString()))
+                .andExpect(status().isBadRequest());
+
+    }
+
+    @Test
+    @DisplayName("Post bookings - без конца")
+    public void testSaveWithNoEnd() throws Exception {
+        newBookingDto.setEnd(null);
+        mockMvc.perform(post("/bookings")
+                        .content(mapper.writeValueAsString(newBookingDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", userDto.getId().toString()))
+                .andExpect(status().isBadRequest());
+
+    }
+
+    @Test
+    @DisplayName("Patch bookings - без id")
+    public void testUpdateWithNoId() throws Exception {
+        mockMvc.perform(patch("/bookings/")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", userDto.getId().toString())
+                        .param("approved", String.valueOf(true)))
+                .andExpect(status().isInternalServerError());
     }
 }

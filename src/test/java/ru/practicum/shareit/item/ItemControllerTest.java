@@ -1,13 +1,13 @@
-package ru.practicum.shareit;
+package ru.practicum.shareit.item;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.practicum.shareit.item.ItemController;
 import ru.practicum.shareit.item.dto.*;
 import ru.practicum.shareit.item.service.ItemService;
 import ru.practicum.shareit.user.dto.UserDto;
@@ -79,6 +79,7 @@ public class ItemControllerTest {
             .setAuthorName(user.getName());
 
     @Test
+    @DisplayName("Post items")
     public void testSave() throws Exception {
         when(itemService.save(newItemDto, user.getId())).thenReturn(itemDto);
         mockMvc.perform(post("/items")
@@ -94,6 +95,7 @@ public class ItemControllerTest {
     }
 
     @Test
+    @DisplayName("Patch items")
     public void testUpdate() throws Exception {
         when(itemService.update(updateItemDto, updatetedItemDto.getId(), updatetedItemDto.getUserId()))
                 .thenReturn(updatetedItemDto);
@@ -110,6 +112,7 @@ public class ItemControllerTest {
     }
 
     @Test
+    @DisplayName("Get items по id")
     public void testFindByItemId() throws Exception {
         commentDtoList.add(commentDto);
         when(itemService.findGetItemDtoByItemId(getItemDto.getId(), user.getId())).thenReturn(getItemDto);
@@ -127,6 +130,7 @@ public class ItemControllerTest {
     }
 
     @Test
+    @DisplayName("Get items по пользователю")
     public void testFindAllByUserId() throws Exception {
         commentDtoList.add(commentDto);
         getItemDtoList.add(getItemDto);
@@ -144,6 +148,7 @@ public class ItemControllerTest {
     }
 
     @Test
+    @DisplayName("Get items по тексту")
     public void testSearch() throws Exception {
         commentDtoList.add(commentDto);
         itemDtoList.add(itemDto);
@@ -160,6 +165,7 @@ public class ItemControllerTest {
 
 
     @Test
+    @DisplayName("Post items comments")
     public void testSaveComment() throws Exception {
         when(itemService.saveComment(user.getId(), itemDto.getId(), newCommentDto)).thenReturn(commentDto);
         mockMvc.perform(post("/items/" + itemDto.getId() + "/comment")
@@ -170,5 +176,82 @@ public class ItemControllerTest {
                 .andExpect(jsonPath("$.id", is(commentDto.getId()), Long.class))
                 .andExpect(jsonPath("$.text", is(commentDto.getText())))
                 .andExpect(jsonPath("$.authorName", is(user.getName())));
+    }
+
+    @Test
+    @DisplayName("Post items - ошибка без названия")
+    public void testSaveWithNoName() throws Exception {
+        newItemDto.setName(null);
+        mockMvc.perform(post("/items")
+                        .content(mapper.writeValueAsString(newItemDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post items - ошибка пустое название")
+    public void testSaveWithEmptyName() throws Exception {
+        newItemDto.setName("");
+        mockMvc.perform(post("/items")
+                        .content(mapper.writeValueAsString(newItemDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post items - ошибка без описания")
+    public void testSaveWithNoDescription() throws Exception {
+        newItemDto.setDescription(null);
+        mockMvc.perform(post("/items")
+                        .content(mapper.writeValueAsString(newItemDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post items - ошибка пустое описания")
+    public void testSaveWithEmptyDescription() throws Exception {
+        newItemDto.setDescription("");
+        mockMvc.perform(post("/items")
+                        .content(mapper.writeValueAsString(newItemDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post items - ошибка без доступности")
+    public void testSaveWithNoAvailable() throws Exception {
+        newItemDto.setAvailable(null);
+        mockMvc.perform(post("/items")
+                        .content(mapper.writeValueAsString(newItemDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post items comments - ошибка нет текста")
+    public void testSaveCommentWithNoText() throws Exception {
+        newCommentDto.setText(null);
+        mockMvc.perform(post("/items/" + itemDto.getId() + "/comment")
+                        .content(mapper.writeValueAsString(newCommentDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Post items comments - ошибка пустой текст")
+    public void testSaveCommentWithEmptyText() throws Exception {
+        newCommentDto.setText("");
+        mockMvc.perform(post("/items/" + itemDto.getId() + "/comment")
+                        .content(mapper.writeValueAsString(newCommentDto))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Sharer-User-Id", user.getId().toString()))
+                .andExpect(status().isBadRequest());
     }
 }
