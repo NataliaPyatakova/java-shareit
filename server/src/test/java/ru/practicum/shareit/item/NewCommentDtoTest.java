@@ -28,11 +28,7 @@ public class NewCommentDtoTest {
     @Test
     @DisplayName("Десериализация NewCommentDto")
     void testDeserializeNewCommentDto() throws Exception {
-        String jsonString = """
-                {
-                    "text": "test text"
-                }
-                """;
+        String jsonString = "{\"text\": \"test text\" }";
         NewCommentDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

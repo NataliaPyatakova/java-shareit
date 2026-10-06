@@ -53,22 +53,17 @@ public class GetItemRequestDtoTest {
     @DisplayName("Десериализация GetItemRequestDto")
     void testDeserializeGetItemRequestDto() throws Exception {
         items.add(item);
-        String jsonString = """
-                {
-                     "id" : 1,
-                     "description": "test description",
-                     "created" : "2026-10-06T12:27:36",
-                     "items": [
-                             {
-                                 "id": 1,
-                                 "userId": 1,
-                                 "name": "test item",
-                                 "description": "test item description",
-                                 "available": true
-                             }
-                         ]
-                }
-                """;
+        String jsonString = "{" +
+                            "\"id\" : 1," +
+                            "\"description\": \"test description\"," +
+                            "\"created\" : \"2026-10-06T12:27:36\"," +
+                            "\"items\": [{" +
+                                        "\"id\": 1," +
+                                        "\"userId\": 1," +
+                                        "\"name\": \"test item\"," +
+                                        "\"description\": \"test item description\"," +
+                                        "\"available\": true}]" +
+                            "}";
         GetItemRequestDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

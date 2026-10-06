@@ -29,12 +29,10 @@ public class UpdateUserDtoTest {
     @Test
     @DisplayName("Десериализация UpdateUserDto")
     void testDeserializeUserDto() throws Exception {
-        String jsonString = """
-                {
-                "email" : "test_email@email.ru",
-                "name" : "test_name"
-                }
-                """;
+        String jsonString = "{" +
+                            "\"email\" : \"test_email@email.ru\"," +
+                            "\"name\" : \"test_name\"" +
+                            "}";
         UpdateUserDto userDto = json.parseObject(jsonString);
         assertThat(userDto).isEqualTo(new UpdateUserDto().setEmail("test_email@email.ru").setName("test_name"));
     }

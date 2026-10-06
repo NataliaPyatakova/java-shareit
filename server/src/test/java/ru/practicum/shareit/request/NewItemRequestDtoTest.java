@@ -28,11 +28,7 @@ public class NewItemRequestDtoTest {
     @Test
     @DisplayName("Десериализация NewItemRequestDto")
     void testDeserializeNewItemRequestDto() throws Exception {
-        String jsonString = """
-                {
-                     "description": "test description"
-                }
-                """;
+        String jsonString = "{\"description\": \"test description\"}";
         NewItemRequestDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

@@ -33,13 +33,11 @@ public class UpdateItemDtoTest {
     @Test
     @DisplayName("Десериализация UpdateItemDto")
     void testDeserializeUpdateItemDto() throws Exception {
-        String jsonString = """
-                {
-                    "name": "test item",
-                    "description": "test description",
-                    "available": true
-                }
-                """;
+        String jsonString = "{" +
+                            "\"name\": \"test item\"," +
+                            "\"description\": \"test description\"," +
+                            "\"available\": true" +
+                            "}";
         UpdateItemDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

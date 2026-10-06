@@ -59,25 +59,20 @@ public class GetItemDtoTest {
     @DisplayName("Десериализация GetItemDto")
     void testDeserializeGetItemDto() throws Exception {
         comments.add(comment);
-        String jsonString = """
-                {
-                    "id": 1,
-                    "userId": 1,
-                    "name": "Item",
-                    "description": "Item description",
-                    "available": true,
-                    "comments": [
-                        {
-                            "id": 1,
-                            "text": "This is a comment",
-                            "authorName": "John",
-                            "created": "2026-10-06T12:27:36"
-                        }
-                    ],
-                    "lastBooking": "2026-10-06T12:27:36",
-                    "nextBooking": "2026-10-07T12:27:36"
-                }
-                """;
+        String jsonString = "{" +
+                            "\"id\": 1," +
+                            "\"userId\": 1," +
+                            "\"name\": \"Item\"," +
+                            "\"description\": \"Item description\"," +
+                            "\"available\": true," +
+                            "\"comments\": [{" +
+                                           "\"id\": 1," +
+                                           "\"text\": \"This is a comment\"," +
+                                           "\"authorName\": \"John\"," +
+                                           "\"created\": \"2026-10-06T12:27:36\"}]," +
+                            "\"lastBooking\": \"2026-10-06T12:27:36\"," +
+                            "\"nextBooking\": \"2026-10-07T12:27:36\"" +
+                            "}";
         GetItemDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

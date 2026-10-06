@@ -35,14 +35,12 @@ public class NewItemDtoTest {
     @Test
     @DisplayName("Десериализация NewItemDto")
     void testDeserializeNewItemDto() throws Exception {
-        String jsonString = """
-                {
-                    "name": "test name",
-                    "description": "test description",
-                    "available": true,
-                    "requestId": 1
-                }
-                """;
+        String jsonString = "{" +
+                            "\"name\": \"test name\"," +
+                            "\"description\": \"test description\"," +
+                            "\"available\": true," +
+                            "\"requestId\": 1" +
+                            "}";
         NewItemDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

@@ -35,13 +35,11 @@ public class NewBookingDtoTest {
     @Test
     @DisplayName("Десериализация NewBookingDto")
     void testDeserializeNewBookingDto() throws Exception {
-        String jsonString = """
-                {
-                    "itemId": 1,
-                    "start": "2026-10-06T12:27:36",
-                    "end": "2026-10-07T12:27:36"
-                }
-                """;
+        String jsonString = "{" +
+                            "\"itemId\": 1," +
+                            "\"start\": \"2026-10-06T12:27:36\"," +
+                            "\"end\": \"2026-10-07T12:27:36\"" +
+                            "}";
         NewBookingDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

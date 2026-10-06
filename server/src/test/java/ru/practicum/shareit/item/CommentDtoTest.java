@@ -37,14 +37,12 @@ public class CommentDtoTest {
     @Test
     @DisplayName("Десериализация CommentDto")
     void testDeserializeCommentDto() throws Exception {
-        String jsonString = """
-                {
-                    "id": 1,
-                    "text": "test text",
-                    "authorName": "test_author",
-                    "created": "2026-10-06T12:27:36"
-                }
-                """;
+        String jsonString = "{" +
+                            "\"id\": 1," +
+                            "\"text\": \"test text\"," +
+                            "\"authorName\": \"test_author\"," +
+                            "\"created\": \"2026-10-06T12:27:36\"" +
+                            "}";
         CommentDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }

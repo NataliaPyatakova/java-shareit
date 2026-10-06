@@ -66,7 +66,7 @@ public class BookingDtoTest {
                             "\"userId\": 1," +
                             "\"name\": \"test item\"," +
                             "\"description\": \"test item description\"," +
-                            "\"available\": true},"+
+                            "\"available\": true}," +
                             "\"booker\": {" +
                             "\"id\": 1," +
                             "\"email\": \"test_email@email.ru\"," +
