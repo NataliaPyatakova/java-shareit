@@ -60,25 +60,20 @@ public class BookingDtoTest {
     @Test
     @DisplayName("Десериализация BookingDto")
     void testDeserializeBookingDto() throws Exception {
-        String jsonString = """
-                {    "id": 1,
-                     "item": {
-                         "id": 1,
-                         "userId": 1,
-                         "name": "test item",
-                         "description": "test item description",
-                         "available": true
-                     },
-                     "booker": {
-                         "id": 1,
-                         "email": "test_email@email.ru",
-                         "name": "test_name"
-                     },
-                     "start": "2026-10-06T12:27:36",
-                     "end": "2026-10-07T12:27:36",
-                     "status": "WAITING"
-                }
-                """;
+        String jsonString = "{\"id\": 1," +
+                            "\"item\": {" +
+                            "\"id\": 1," +
+                            "\"userId\": 1," +
+                            "\"name\": \"test item\"," +
+                            "\"description\": \"test item description\"," +
+                            "\"available\": true},"+
+                            "\"booker\": {" +
+                            "\"id\": 1," +
+                            "\"email\": \"test_email@email.ru\"," +
+                            "\"name\": \"test_name\"}, " +
+                            " \"start\": \"2026-10-06T12:27:36\", " +
+                            "\"end\": \"2026-10-07T12:27:36\", " +
+                            "\"status\": \"WAITING\"}";
         BookingDto result = json.parseObject(jsonString);
         assertThat(result).isEqualTo(dto);
     }
