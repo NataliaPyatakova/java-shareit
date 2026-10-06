@@ -41,7 +41,7 @@ public class ItemServiceTest {
     @Autowired
     private ItemRequestRepository itemRequestRepository;
 
-    private final static long TIMEOUT = 2;
+    private static final long TIMEOUT = 2;
     private final LocalDateTime date = LocalDateTime.now();
     private final NewItemDto newItemDto = new NewItemDto()
             .setName("test_item")
