@@ -61,8 +61,7 @@ public class BookingDtoTest {
     @DisplayName("Десериализация BookingDto")
     void testDeserializeBookingDto() throws Exception {
         String jsonString = """
-                {
-                     "id": 1,
+                {    "id": 1,
                      "item": {
                          "id": 1,
                          "userId": 1,

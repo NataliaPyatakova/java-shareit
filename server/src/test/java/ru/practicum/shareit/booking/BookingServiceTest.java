@@ -37,7 +37,7 @@ public class BookingServiceTest {
     @Autowired
     private ItemRepository itemRepository;
 
-    private final long TIMEOUT = 2;
+    private final static long TIMEOUT = 2;
     private final LocalDateTime date = LocalDateTime.now();
     private final NewUserDto owner = new NewUserDto()
             .setName("test_user")

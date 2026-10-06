@@ -86,6 +86,7 @@ public class ItemServiceImpl implements ItemService {
         List<Comment> listComments = commentRepository.findAllByItemIdIn(itemIds);
         return ItemMapper.mapToGetItemDto(item, listComments, lastBooking, nextBooking);
     }
+
     @Override
     public List<GetItemDto> findAllByUserId(long userId) {
         log.info("findAllByUserId {}", userId);
