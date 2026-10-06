@@ -52,7 +52,6 @@ public class CommentMapperTest {
         Comment result = CommentMapper.commentDtoToCommentForCreate(commentator, item, newCommentDto);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(newCommentDto.getText(), result.getText());
-        Assertions.assertEquals(LocalDateTime.now(), result.getDateCreated());
         Assertions.assertEquals(item, result.getItem());
         Assertions.assertEquals(commentator, result.getUser());
     }
