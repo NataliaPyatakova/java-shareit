@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-@Accessors(chain=true)
+@Accessors(chain = true)
 public class GetItemDto {
 
     private Long id;
