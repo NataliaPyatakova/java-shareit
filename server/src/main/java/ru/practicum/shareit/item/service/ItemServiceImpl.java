@@ -95,7 +95,7 @@ public class ItemServiceImpl implements ItemService {
         }
         return items.stream()
                 .map(item -> ItemMapper.mapToGetItemDto(item,
-                        mapComments.get(item.getId())!= null ? mapComments.get(item.getId()) : new ArrayList<>(),
+                        mapComments.get(item.getId()) != null ? mapComments.get(item.getId()) : new ArrayList<>(),
                         itemLastBooking.get(item.getId()),
                         itemLNextBooking.get(item.getId())))
                 .toList();
