@@ -28,27 +28,27 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Object> findById(@PathVariable("id") @NotNull Long id) {
-        log.info("Gateway Users findById");
+        log.info("Gateway Users findById {}", id);
         return userClient.findById(id);
     }
 
     @PostMapping
     public ResponseEntity<Object> save(@Validated @RequestBody NewUserDto user) {
-        log.info("Gateway Users save");
+        log.info("Gateway Users save {}", user);
         return userClient.save(user);
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<Object> update(@PathVariable("id") @NotNull Long id,
                                          @Validated @RequestBody UpdateUserDto user) {
-        log.info("Gateway Users update");
+        log.info("Gateway Users update id {} user {}", id, user);
         return userClient.update(id, user);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long id) {
-        log.info("Gateway Users deleteUser");
+        log.info("Gateway Users deleteUser {}", id);
         userClient.deleteUser(id);
     }
 }

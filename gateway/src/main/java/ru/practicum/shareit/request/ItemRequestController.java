@@ -20,13 +20,13 @@ public class ItemRequestController {
     @PostMapping
     public ResponseEntity<Object> save(@RequestHeader("X-Sharer-User-Id") long userId,
                                        @Validated @RequestBody NewItemRequestDto itemRequestDto) {
-        log.info("Gateway requests save");
+        log.info("Gateway requests save userId {} itemRequestDto {}", userId, itemRequestDto);
         return itemRequestClient.save(userId, itemRequestDto);
     }
 
     @GetMapping
     public ResponseEntity<Object> findGetItemRequestDtoByUserId(@RequestHeader("X-Sharer-User-Id") long userId) {
-        log.info("Gateway requests findGetItemRequestDtoByUserId");
+        log.info("Gateway requests findGetItemRequestDtoByUserId userId {}", userId);
         return itemRequestClient.findGetItemRequestDtoByUserId(userId);
     }
 
@@ -38,7 +38,7 @@ public class ItemRequestController {
 
     @GetMapping("/{requestId}")
     public ResponseEntity<Object> findGetItemRequestDtoById(@PathVariable @NotNull long requestId) {
-        log.info("Gateway requests findGetItemRequestDtoById");
+        log.info("Gateway requests findGetItemRequestDtoById requestId {}", requestId);
         return itemRequestClient.findGetItemRequestDtoById(requestId);
     }
 }

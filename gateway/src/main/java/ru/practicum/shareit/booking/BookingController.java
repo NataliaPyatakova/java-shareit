@@ -23,7 +23,7 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<Object> save(@RequestHeader("X-Sharer-User-Id") long userId,
                                        @RequestBody @Valid NewBookingDto bookingDto) {
-        log.info("Gateway booking save");
+        log.info("Gateway booking save userId {} bookingDto {}", userId, bookingDto);
         return bookingClient.save(userId, bookingDto);
     }
 
@@ -31,21 +31,21 @@ public class BookingController {
     public ResponseEntity<Object> update(@RequestHeader("X-Sharer-User-Id") long userId,
                                          @PathVariable @NotNull long bookingId,
                                          @RequestParam boolean approved) {
-        log.info("Gateway booking update");
+        log.info("Gateway booking update userId {} bookingId {} approved {}", userId, bookingId, approved);
         return bookingClient.update(userId, bookingId, approved);
     }
 
     @GetMapping("/{bookingId}")
     public ResponseEntity<Object> findById(@RequestHeader("X-Sharer-User-Id") long userId,
                                            @PathVariable @NotNull long bookingId) {
-        log.info("Gateway booking findById");
+        log.info("Gateway booking findById userId {} bookingId {}", userId, bookingId);
         return bookingClient.findById(userId, bookingId);
     }
 
     @GetMapping
     public ResponseEntity<Object> findByBookerIdAndState(@RequestHeader("X-Sharer-User-Id") long userId,
                                                          @RequestParam(name = "state", defaultValue = "ALL") String stateParam) {
-        log.info("Gateway booking findByBookerIdAndState");
+        log.info("Gateway booking findByBookerIdAndState userId {} stateParam {}", userId, stateParam);
         BookingStateSearch state = BookingStateSearch.from(stateParam)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown state: " + stateParam));
         return bookingClient.findByBookerIdAndState(userId, state);
@@ -54,7 +54,7 @@ public class BookingController {
     @GetMapping("/owner")
     public ResponseEntity<Object> findByOwnerIdAndState(@RequestHeader("X-Sharer-User-Id") long userId,
                                                         @RequestParam(name = "state", defaultValue = "ALL") String stateParam) {
-        log.info("Gateway booking findByOwnerIdAndState");
+        log.info("Gateway booking findByOwnerIdAndState userId {} stateParam {}", userId, stateParam);
         BookingStateSearch state = BookingStateSearch.from(stateParam)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown state: " + stateParam));
         return bookingClient.findByOwnerIdAndState(userId, state);
