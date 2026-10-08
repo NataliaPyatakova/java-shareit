@@ -28,7 +28,12 @@ public class ItemRequestMapperTest {
             .setUser(requester)
             .setDescription("request")
             .setDateCreated(date);
-    private final NewItemRequestDto newItemRequestDto = new NewItemRequestDto().setDescription("request");
+    private final ItemRequestDto itemRequestDto = new ItemRequestDto()
+            .setId(1L)
+            .setDescription("request")
+            .setCreated(date);
+    private final NewItemRequestDto newItemRequestDto = new NewItemRequestDto()
+            .setDescription("request");
     private final ItemDto itemDto = new ItemDto()
             .setId(1L)
             .setDescription("item")
@@ -44,6 +49,15 @@ public class ItemRequestMapperTest {
         Assertions.assertEquals(itemRequest.getId(), result.getId());
         Assertions.assertEquals(itemRequest.getDescription(), result.getDescription());
         Assertions.assertEquals(itemRequest.getDateCreated(), result.getCreated());
+    }
+
+    @Test
+    public void testMapToItemRequest() {
+        ItemRequest result = ItemRequestMapper.mapToItemRequest(itemRequestDto, requester);
+        Assertions.assertNotNull(result);
+        Assertions.assertEquals(itemRequestDto.getId(), result.getId());
+        Assertions.assertEquals(requester.getId(), result.getUser().getId());
+        Assertions.assertEquals(itemRequestDto.getDescription(), result.getDescription());
     }
 
     @Test

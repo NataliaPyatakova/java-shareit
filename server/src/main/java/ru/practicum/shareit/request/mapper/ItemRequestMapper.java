@@ -23,6 +23,15 @@ public class ItemRequestMapper {
         return itemRequestDto;
     }
 
+    public static ItemRequest mapToItemRequest(ItemRequestDto itemRequestDto, User user) {
+        ItemRequest itemRequest = new ItemRequest();
+        itemRequest.setId(itemRequestDto.getId());
+        itemRequest.setUser(user);
+        itemRequest.setDateCreated(itemRequestDto.getCreated());
+        itemRequest.setDescription(itemRequestDto.getDescription());
+        return itemRequest;
+    }
+
     public static ItemRequest mapToItemRequestForCreate(NewItemRequestDto itemRequestDto, User user) {
         ItemRequest itemRequest = new ItemRequest();
         itemRequest.setUser(user);

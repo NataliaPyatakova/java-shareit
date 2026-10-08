@@ -72,4 +72,14 @@ public class ItemMapper {
         }
         return item;
     }
+
+    public static Item mapToItem(ItemDto itemDto, User user) {
+        Item item = new Item();
+        item.setId(itemDto.getId());
+        item.setUser(user);
+        item.setName(itemDto.getName());
+        item.setDescription(itemDto.getDescription());
+        item.setAvailable(itemDto.getAvailable());
+        return item;
+    }
 }

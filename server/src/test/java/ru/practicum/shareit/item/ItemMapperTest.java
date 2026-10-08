@@ -56,6 +56,11 @@ public class ItemMapperTest {
             .setUser(requester)
             .setDescription("request")
             .setDateCreated(date);
+    private final ItemDto itemDto = new ItemDto()
+            .setId(1L)
+            .setName("item")
+            .setDescription("test")
+            .setAvailable(true);
 
     @Test
     public void testMapToItemDto() {
@@ -129,5 +134,16 @@ public class ItemMapperTest {
         Assertions.assertEquals(item.getName(), result.getName());
         Assertions.assertEquals(item.getDescription(), result.getDescription());
         Assertions.assertEquals(updatedItemDto.getAvailable(), result.getAvailable());
+    }
+
+    @Test
+    public void testMapToItem() {
+        Item result = ItemMapper.mapToItem(itemDto, user);
+        Assertions.assertNotNull(result);
+        Assertions.assertEquals(user, result.getUser());
+        Assertions.assertEquals(itemDto.getId(), result.getId());
+        Assertions.assertEquals(itemDto.getName(), result.getName());
+        Assertions.assertEquals(itemDto.getDescription(), result.getDescription());
+        Assertions.assertEquals(itemDto.getAvailable(), result.getAvailable());
     }
 }

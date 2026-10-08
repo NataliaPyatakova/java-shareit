@@ -1,27 +1,23 @@
 package ru.practicum.shareit.item;
 
+import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.shareit.booking.dto.BookingDto;
-import ru.practicum.shareit.booking.dto.NewBookingDto;
-import ru.practicum.shareit.booking.service.BookingService;
+import ru.practicum.shareit.booking.enumeration.BookingProcessState;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.exception.BadRequestException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.dto.*;
+import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.service.ItemService;
-import ru.practicum.shareit.request.dao.ItemRequestRepository;
-import ru.practicum.shareit.request.dto.NewItemRequestDto;
-import ru.practicum.shareit.request.mapper.ItemRequestMapper;
 import ru.practicum.shareit.request.model.ItemRequest;
-import ru.practicum.shareit.user.dto.NewUserDto;
-import ru.practicum.shareit.user.dto.UserDto;
-import ru.practicum.shareit.user.mapper.UserMapper;
-import ru.practicum.shareit.user.service.UserService;
+import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -30,75 +26,75 @@ import java.util.concurrent.TimeUnit;
 
 @Transactional
 @SpringBootTest
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class ItemServiceTest {
 
     @Autowired
     private ItemService itemService;
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private BookingService bookingService;
-    @Autowired
-    private ItemRequestRepository itemRequestRepository;
+    private final EntityManager em;
 
     private static final long TIMEOUT = 2;
     private final LocalDateTime date = LocalDateTime.now();
+    private final User owner = new User()
+            .setName("test_user")
+            .setEmail("test_user@test.ru");
+    private final User requester = new User()
+            .setName("test_requester")
+            .setEmail("test_requester@test.ru");
+    private final User booker = new User()
+            .setName("test_booker")
+            .setEmail("test_booker@test.ru");
+    private final ItemRequest itemRequest = new ItemRequest()
+            .setDescription("test")
+            .setDateCreated(date);
+    private final Booking newBooking = new Booking()
+            .setStart(date)
+            .setEnd(date.plusSeconds(2))
+            .setState(BookingProcessState.WAITING);
+    private final Booking newBookingFuture = new Booking()
+            .setStart(date.plusDays(1))
+            .setEnd(date.plusDays(1).plusSeconds(2))
+            .setState(BookingProcessState.WAITING);
     private final NewItemDto newItemDto = new NewItemDto()
             .setName("test_item")
             .setDescription("test description")
             .setAvailable(true);
-    private final NewUserDto newUserDto = new NewUserDto()
-            .setName("test_user")
-            .setEmail("test_user@test.ru");
-    private final NewItemRequestDto newItemRequestDto = new NewItemRequestDto().setDescription("test");
-    private final NewUserDto requester = new NewUserDto()
-            .setName("test_requester")
-            .setEmail("test_requester@test.ru");
     private final UpdateItemDto updateItemDto = new UpdateItemDto()
             .setName("update_item")
             .setDescription("update description")
             .setAvailable(false);
-    private final NewUserDto booker = new NewUserDto()
-            .setName("test_booker")
-            .setEmail("test_booker@test.ru");
     private final NewCommentDto newCommentDto = new NewCommentDto().setText("test comment");
-    private final NewBookingDto newBookingDto = new NewBookingDto()
-            .setStart(date)
-            .setEnd(date.plusSeconds(2));
-    private final NewBookingDto newBookingDtoFuture = new NewBookingDto()
-            .setStart(date.plusDays(1))
-            .setEnd(date.plusDays(1).plusSeconds(2));
 
     @Test
     @DisplayName("Сохранение вещи без запроса")
     public void testSaveItemWithNoRequest() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto result = itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        ItemDto result = itemService.save(newItemDto, owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertNotNull(result.getId());
-        Assertions.assertEquals(savedUser.getId(), result.getUserId());
+        Assertions.assertEquals(owner.getId(), result.getUserId());
     }
 
     @Test
     @DisplayName("Сохранение вещи с запросом")
     public void testSaveItemWithRequest() {
-        UserDto savedUser = userService.save(newUserDto);
-        UserDto savedRequester = userService.save(requester);
-        ItemRequest request = itemRequestRepository.save(ItemRequestMapper.mapToItemRequestForCreate(newItemRequestDto,
-                UserMapper.mapToUser(savedRequester)));
-        newItemDto.setRequestId(request.getId());
-        ItemDto result = itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        em.persist(requester);
+        itemRequest.setUser(requester);
+        em.persist(itemRequest);
+        newItemDto.setRequestId(itemRequest.getId());
+        ItemDto result = itemService.save(newItemDto, owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertNotNull(result.getId());
-        Assertions.assertEquals(savedUser.getId(), result.getUserId());
+        Assertions.assertEquals(owner.getId(), result.getUserId());
     }
 
     @Test
     @DisplayName("Обновление вещи - правильный Id")
     public void testUpdateItemWithProperId() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        ItemDto result = itemService.update(updateItemDto, savedItem.getId(), savedUser.getId());
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        ItemDto result = itemService.update(updateItemDto, savedItem.getId(), owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(savedItem.getId(), result.getId());
         Assertions.assertEquals(savedItem.getUserId(), result.getUserId());
@@ -110,10 +106,10 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Обновление вещи - неправильный Id")
     public void testUpdateItemWithWrongId() {
-        UserDto savedUser = userService.save(newUserDto);
-        itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        itemService.save(newItemDto, owner.getId());
         try {
-            itemService.update(updateItemDto, 999L, savedUser.getId());
+            itemService.update(updateItemDto, 999L, owner.getId());
         } catch (NotFoundException ex) {
             Assertions.assertEquals("Вещь с id = 999 не найдена", ex.getMessage());
         }
@@ -122,13 +118,13 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по запросу - правильный id")
     public void testFindAllByProperRequestId() {
-        UserDto savedUser = userService.save(newUserDto);
-        UserDto savedRequester = userService.save(requester);
-        ItemRequest request = itemRequestRepository.save(ItemRequestMapper.mapToItemRequestForCreate(newItemRequestDto,
-                UserMapper.mapToUser(savedRequester)));
-        newItemDto.setRequestId(request.getId());
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        List<ItemDto> result = itemService.findAllByRequestId(request.getId());
+        em.persist(owner);
+        em.persist(requester);
+        itemRequest.setUser(requester);
+        em.persist(itemRequest);
+        newItemDto.setRequestId(itemRequest.getId());
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        List<ItemDto> result = itemService.findAllByRequestId(itemRequest.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(savedItem.getId(), result.getFirst().getId());
@@ -138,10 +134,10 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по запросу - нет вещей по запросу")
     public void testFindAllByRequestIdWithNoRequest() {
-        UserDto savedRequester = userService.save(requester);
-        ItemRequest request = itemRequestRepository.save(ItemRequestMapper.mapToItemRequestForCreate(newItemRequestDto,
-                UserMapper.mapToUser(savedRequester)));
-        List<ItemDto> result = itemService.findAllByRequestId(request.getId());
+        em.persist(requester);
+        itemRequest.setUser(requester);
+        em.persist(itemRequest);
+        List<ItemDto> result = itemService.findAllByRequestId(itemRequest.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(0, result.size());
     }
@@ -170,14 +166,14 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по запросам - 1 вещь по запросу")
     public void testFindAllByItemRequestIdIn1Items() {
-        UserDto savedUser = userService.save(newUserDto);
-        UserDto savedRequester = userService.save(requester);
-        ItemRequest request = itemRequestRepository.save(ItemRequestMapper.mapToItemRequestForCreate(newItemRequestDto,
-                UserMapper.mapToUser(savedRequester)));
-        newItemDto.setRequestId(request.getId());
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        em.persist(requester);
+        itemRequest.setUser(requester);
+        em.persist(itemRequest);
+        newItemDto.setRequestId(itemRequest.getId());
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
         List<Long> itemRequestIds = new ArrayList<>();
-        itemRequestIds.add(request.getId());
+        itemRequestIds.add(itemRequest.getId());
         List<Item> items = itemService.findAllByItemRequestIdIn(itemRequestIds);
         Assertions.assertNotNull(items);
         Assertions.assertEquals(1, items.size());
@@ -188,15 +184,15 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по запросам - 2 вещи по запросу")
     public void testFindAllByItemRequestIdIn2Items() {
-        UserDto savedUser = userService.save(newUserDto);
-        UserDto savedRequester = userService.save(requester);
-        ItemRequest request = itemRequestRepository.save(ItemRequestMapper.mapToItemRequestForCreate(newItemRequestDto,
-                UserMapper.mapToUser(savedRequester)));
-        newItemDto.setRequestId(request.getId());
-        itemService.save(newItemDto, savedUser.getId());
-        itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        em.persist(requester);
+        itemRequest.setUser(requester);
+        em.persist(itemRequest);
+        newItemDto.setRequestId(itemRequest.getId());
+        itemService.save(newItemDto, owner.getId());
+        itemService.save(newItemDto, owner.getId());
         List<Long> itemRequestIds = new ArrayList<>();
-        itemRequestIds.add(request.getId());
+        itemRequestIds.add(itemRequest.getId());
         List<Item> items = itemService.findAllByItemRequestIdIn(itemRequestIds);
         Assertions.assertNotNull(items);
         Assertions.assertEquals(2, items.size());
@@ -205,11 +201,11 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Сохранение комментария - нет бронирования")
     public void testSaveCommentWithNoBooking() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        UserDto savedBooker = userService.save(booker);
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        em.persist(booker);
         try {
-            itemService.saveComment(savedBooker.getId(), savedItem.getId(), newCommentDto);
+            itemService.saveComment(booker.getId(), savedItem.getId(), newCommentDto);
         } catch (BadRequestException ex) {
             Assertions.assertEquals("Бронирование этой вещи данным пользователем не найдено", ex.getMessage());
         }
@@ -218,17 +214,18 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Сохранение комментария - все хорошо")
     public void testSaveCommentWithBooking() throws InterruptedException {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        UserDto savedBooker = userService.save(booker);
-        newBookingDto.setItemId(savedItem.getId());
-        bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        em.persist(booker);
+        newBooking.setBooker(booker);
+        newBooking.setItem(ItemMapper.mapToItem(savedItem, owner));
+        em.persist(newBooking);
         //задержка в 5 сек чтобы бронирование стало прошлым
         TimeUnit.SECONDS.sleep(TIMEOUT);
-        CommentDto result = itemService.saveComment(savedBooker.getId(), savedItem.getId(), newCommentDto);
+        CommentDto result = itemService.saveComment(booker.getId(), savedItem.getId(), newCommentDto);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(newCommentDto.getText(), result.getText());
-        Assertions.assertEquals(savedBooker.getName(), result.getAuthorName());
+        Assertions.assertEquals(booker.getName(), result.getAuthorName());
         Assertions.assertEquals(date.toLocalDate(), result.getCreated().toLocalDate());
     }
 
@@ -251,8 +248,8 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по названию или описанию - по названию")
     public void testSearchTextByName() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto result = itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        ItemDto result = itemService.save(newItemDto, owner.getId());
         System.out.println(result);
         List<ItemDto> items = itemService.search("test_item");
         Assertions.assertNotNull(items);
@@ -264,8 +261,8 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по названию или описанию - по описанию")
     public void testSearchTexByDescription() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto result = itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        ItemDto result = itemService.save(newItemDto, owner.getId());
         System.out.println(result);
         List<ItemDto> items = itemService.search("test description");
         Assertions.assertNotNull(items);
@@ -277,8 +274,8 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по id - неправильный id")
     public void testFindGetItemDtoByItemIdWrongId() {
-        UserDto savedUser = userService.save(newUserDto);
-        itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        itemService.save(newItemDto, owner.getId());
         try {
             itemService.findGetItemDtoByItemId(999L, 999L);
         } catch (NotFoundException ex) {
@@ -289,8 +286,8 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по id - не от владельца, без комментариев")
     public void testFindGetItemDtoByItemIdAllOk() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
         GetItemDto result = itemService.findGetItemDtoByItemId(savedItem.getId(), 999L);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(savedItem.getId(), result.getId());
@@ -306,9 +303,9 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по id - от владельца, без комментариев и бронирования")
     public void testFindGetItemDtoByItemIdByOwnerNoBooking() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        GetItemDto result = itemService.findGetItemDtoByItemId(savedItem.getId(), savedUser.getId());
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        GetItemDto result = itemService.findGetItemDtoByItemId(savedItem.getId(), owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(savedItem.getId(), result.getId());
         Assertions.assertEquals(savedItem.getUserId(), result.getUserId());
@@ -323,32 +320,32 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по id - от владельца, с комментариями и с бронированием")
     public void testFindGetItemDtoByItemIdByOwnerBookingNoComments() throws InterruptedException {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        UserDto savedBooker = userService.save(booker);
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        em.persist(booker);
         //прошлое бронирование
-        newBookingDto.setItemId(savedItem.getId());
+        newBooking.setBooker(booker);
+        newBooking.setItem(ItemMapper.mapToItem(savedItem, owner));
+        newBooking.setState(BookingProcessState.APPROVED); //одобряем бронь - иначе не увидим ее в датах
+        em.persist(newBooking);
         //будущее бронирование
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        //одобряем бронь - иначе не увидим ее в датах
-        bookingService.update(savedBooking.getId(), savedUser.getId(), true);
-        BookingDto savedBooking1 = bookingService.save(newBookingDtoFuture, savedBooker.getId());
-        //одобряем бронь - иначе не увидим ее в датах
-        bookingService.update(savedBooking1.getId(), savedUser.getId(), true);
+        newBookingFuture.setBooker(booker);
+        newBookingFuture.setItem(ItemMapper.mapToItem(savedItem, owner));
+        newBookingFuture.setState(BookingProcessState.APPROVED); //одобряем бронь - иначе не увидим ее в датах
+        em.persist(newBookingFuture);
         //задержка в 5 сек чтобы бронирование стало прошлым
         TimeUnit.SECONDS.sleep(TIMEOUT);
         //добавялем комментарий
-        CommentDto savedComment = itemService.saveComment(savedBooker.getId(), savedItem.getId(), newCommentDto);
-        GetItemDto result = itemService.findGetItemDtoByItemId(savedItem.getId(), savedUser.getId());
+        CommentDto savedComment = itemService.saveComment(booker.getId(), savedItem.getId(), newCommentDto);
+        GetItemDto result = itemService.findGetItemDtoByItemId(savedItem.getId(), owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(savedItem.getId(), result.getId());
         Assertions.assertEquals(savedItem.getUserId(), result.getUserId());
         Assertions.assertEquals(savedItem.getName(), result.getName());
         Assertions.assertEquals(savedItem.getDescription(), result.getDescription());
         Assertions.assertEquals(savedItem.getAvailable(), result.getAvailable());
-        Assertions.assertEquals(newBookingDto.getEnd(), result.getLastBooking());
-        Assertions.assertEquals(newBookingDtoFuture.getStart(), result.getNextBooking());
+        Assertions.assertEquals(newBooking.getEnd(), result.getLastBooking());
+        Assertions.assertEquals(newBookingFuture.getStart(), result.getNextBooking());
         Assertions.assertEquals(1, result.getComments().size());
         Assertions.assertEquals(savedComment.getId(), result.getComments().getFirst().getId());
         Assertions.assertEquals(savedComment.getText(), result.getComments().getFirst().getText());
@@ -357,8 +354,8 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по владельцу - неверный владелец")
     public void testFindAllByUserIdWrongUserId() {
-        UserDto savedUser = userService.save(newUserDto);
-        itemService.save(newItemDto, savedUser.getId());
+        em.persist(owner);
+        itemService.save(newItemDto, owner.getId());
         try {
             itemService.findAllByUserId(999L);
         } catch (NotFoundException ex) {
@@ -369,9 +366,9 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по владельцу - без комментариев и бронирования")
     public void testFindAllByUserIdNoBooking() {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        List<GetItemDto> result = itemService.findAllByUserId(savedUser.getId());
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        List<GetItemDto> result = itemService.findAllByUserId(owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(savedItem.getId(), result.getFirst().getId());
         Assertions.assertEquals(savedItem.getUserId(), result.getFirst().getUserId());
@@ -386,32 +383,32 @@ public class ItemServiceTest {
     @Test
     @DisplayName("Поиск вещей по владельцу - с комментариями и с бронированием")
     public void testFindAllByUserId() throws InterruptedException {
-        UserDto savedUser = userService.save(newUserDto);
-        ItemDto savedItem = itemService.save(newItemDto, savedUser.getId());
-        UserDto savedBooker = userService.save(booker);
+        em.persist(owner);
+        ItemDto savedItem = itemService.save(newItemDto, owner.getId());
+        em.persist(booker);
         //прошлое бронирование
-        newBookingDto.setItemId(savedItem.getId());
+        newBooking.setBooker(booker);
+        newBooking.setItem(ItemMapper.mapToItem(savedItem, owner));
+        newBooking.setState(BookingProcessState.APPROVED); //одобряем бронь - иначе не увидим ее в датах
+        em.persist(newBooking);
         //будущее бронирование
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        //одобряем бронь - иначе не увидим ее в датах
-        bookingService.update(savedBooking.getId(), savedUser.getId(), true);
-        BookingDto savedBooking1 = bookingService.save(newBookingDtoFuture, savedBooker.getId());
-        //одобряем бронь - иначе не увидим ее в датах
-        bookingService.update(savedBooking1.getId(), savedUser.getId(), true);
+        newBookingFuture.setBooker(booker);
+        newBookingFuture.setItem(ItemMapper.mapToItem(savedItem, owner));
+        newBookingFuture.setState(BookingProcessState.APPROVED); //одобряем бронь - иначе не увидим ее в датах
+        em.persist(newBookingFuture);
         //задержка в 5 сек чтобы бронирование стало прошлым
         TimeUnit.SECONDS.sleep(TIMEOUT);
         //добавялем комментарий
-        CommentDto savedComment = itemService.saveComment(savedBooker.getId(), savedItem.getId(), newCommentDto);
-        List<GetItemDto> result = itemService.findAllByUserId(savedUser.getId());
+        CommentDto savedComment = itemService.saveComment(booker.getId(), savedItem.getId(), newCommentDto);
+        List<GetItemDto> result = itemService.findAllByUserId(owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(savedItem.getId(), result.getFirst().getId());
         Assertions.assertEquals(savedItem.getUserId(), result.getFirst().getUserId());
         Assertions.assertEquals(savedItem.getName(), result.getFirst().getName());
         Assertions.assertEquals(savedItem.getDescription(), result.getFirst().getDescription());
         Assertions.assertEquals(savedItem.getAvailable(), result.getFirst().getAvailable());
-        Assertions.assertEquals(newBookingDto.getEnd(), result.getFirst().getLastBooking());
-        Assertions.assertEquals(newBookingDtoFuture.getStart(), result.getFirst().getNextBooking());
+        Assertions.assertEquals(newBooking.getEnd(), result.getFirst().getLastBooking());
+        Assertions.assertEquals(newBookingFuture.getStart(), result.getFirst().getNextBooking());
         Assertions.assertEquals(1, result.getFirst().getComments().size());
         Assertions.assertEquals(savedComment.getId(), result.getFirst().getComments().getFirst().getId());
         Assertions.assertEquals(savedComment.getText(), result.getFirst().getComments().getFirst().getText());

@@ -1,5 +1,7 @@
 package ru.practicum.shareit.booking;
 
+import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,12 +16,8 @@ import ru.practicum.shareit.booking.service.BookingService;
 import ru.practicum.shareit.exception.BadRequestException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.WrongUserException;
-import ru.practicum.shareit.item.dao.ItemRepository;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.user.dto.NewUserDto;
-import ru.practicum.shareit.user.dto.UserDto;
-import ru.practicum.shareit.user.mapper.UserMapper;
-import ru.practicum.shareit.user.service.UserService;
+import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,46 +26,44 @@ import java.util.concurrent.TimeUnit;
 
 @Transactional
 @SpringBootTest
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class BookingServiceTest {
 
     @Autowired
     private BookingService bookingService;
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private ItemRepository itemRepository;
+    private final EntityManager em;
 
     private static final long TIMEOUT = 2;
     private final LocalDateTime date = LocalDateTime.now();
-    private final NewUserDto owner = new NewUserDto()
+    private final User owner = new User()
             .setName("test_user")
             .setEmail("test_user@test.ru");
+    private final Item item = new Item()
+            .setName("test_item")
+            .setDescription("test description")
+            .setAvailable(true);
+    private final User booker = new User()
+            .setName("test_booker")
+            .setEmail("test_booker@test.ru");
     private final NewBookingDto newBookingDto = new NewBookingDto()
             .setStart(date)
             .setEnd(date.plusSeconds(2));
     private final NewBookingDto newBookingDtoFuture = new NewBookingDto()
             .setStart(date.plusDays(1))
             .setEnd(date.plusDays(1).plusSeconds(2));
-    private final Item item = new Item()
-            .setName("test_item")
-            .setDescription("test description")
-            .setAvailable(true);
-    private final NewUserDto booker = new NewUserDto()
-            .setName("test_booker")
-            .setEmail("test_booker@test.ru");
 
     @Test
     @DisplayName("Сохранение бронирования - все хорошо")
     public void testSaveAllOk() {
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto result = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto result = bookingService.save(newBookingDto, booker.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(newBookingDto.getItemId(), result.getItem().getId());
-        Assertions.assertEquals(savedBooker.getId(), result.getBooker().getId());
+        Assertions.assertEquals(booker.getId(), result.getBooker().getId());
         Assertions.assertEquals(newBookingDto.getStart(), result.getStart());
         Assertions.assertEquals(newBookingDto.getEnd(), result.getEnd());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getStatus());
@@ -76,11 +72,10 @@ public class BookingServiceTest {
     @Test
     @DisplayName("Сохранение бронирования - несуществующий пользователь")
     public void testSaveWrongUser() {
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
         try {
             bookingService.save(newBookingDto, 999L);
         } catch (NotFoundException ex) {
@@ -92,9 +87,9 @@ public class BookingServiceTest {
     @DisplayName("Сохранение бронирования - несуществующая вещь")
     public void testSaveWrongItem() {
         newBookingDto.setItemId(999L);
-        UserDto savedBooker = userService.save(booker);
+        em.persist(booker);
         try {
-            bookingService.save(newBookingDto, savedBooker.getId());
+            bookingService.save(newBookingDto, booker.getId());
         } catch (NotFoundException ex) {
             Assertions.assertEquals("Вещь с id = 999 не найдена", ex.getMessage());
         }
@@ -103,14 +98,14 @@ public class BookingServiceTest {
     @Test
     @DisplayName("Сохранение бронирования - вещь занята")
     public void testSaveNotAvailable() {
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
+        em.persist(owner);
+        item.setUser(owner);
         item.setAvailable(false);
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
         try {
-            bookingService.save(newBookingDto, savedBooker.getId());
+            bookingService.save(newBookingDto, booker.getId());
         } catch (BadRequestException ex) {
             Assertions.assertEquals("Бронируемая вещь занята!", ex.getMessage());
         }
@@ -122,9 +117,9 @@ public class BookingServiceTest {
         //уравниваем даты, чтобы попасть в ошибку
         newBookingDto.setStart(date);
         newBookingDto.setEnd(date);
-        UserDto savedBooker = userService.save(booker);
+        em.persist(booker);
         try {
-            bookingService.save(newBookingDto, savedBooker.getId());
+            bookingService.save(newBookingDto, booker.getId());
         } catch (BadRequestException ex) {
             Assertions.assertEquals("Дата окончания бронирования не может быть равна дате начала",
                     ex.getMessage());
@@ -137,9 +132,9 @@ public class BookingServiceTest {
         //дата конца раньше даты начала, чтобы попасть в ошибку
         newBookingDto.setStart(date);
         newBookingDto.setEnd(date.minusHours(1));
-        UserDto savedBooker = userService.save(booker);
+        em.persist(booker);
         try {
-            bookingService.save(newBookingDto, savedBooker.getId());
+            bookingService.save(newBookingDto, booker.getId());
         } catch (BadRequestException ex) {
             Assertions.assertEquals("Дата окончания бронирования не может быть раньше даты начала",
                     ex.getMessage());
@@ -153,9 +148,9 @@ public class BookingServiceTest {
         //случай целого бронирования в прошлом
         newBookingDto.setStart(date.minusDays(1).minusHours(1));
         newBookingDto.setEnd(date.minusDays(1));
-        UserDto savedBooker = userService.save(booker);
+        em.persist(booker);
         try {
-            bookingService.save(newBookingDto, savedBooker.getId());
+            bookingService.save(newBookingDto, booker.getId());
         } catch (BadRequestException ex) {
             Assertions.assertEquals("Дата окончания или начала бронирования не может быть раньше текущей даты",
                     ex.getMessage());
@@ -169,9 +164,9 @@ public class BookingServiceTest {
         //случай начала бронирования в прошлом
         newBookingDto.setStart(date.minusDays(1));
         newBookingDto.setEnd(date);
-        UserDto savedBooker = userService.save(booker);
+        em.persist(booker);
         try {
-            bookingService.save(newBookingDto, savedBooker.getId());
+            bookingService.save(newBookingDto, booker.getId());
         } catch (BadRequestException ex) {
             Assertions.assertEquals("Дата окончания или начала бронирования не может быть раньше текущей даты",
                     ex.getMessage());
@@ -182,14 +177,14 @@ public class BookingServiceTest {
     @DisplayName("Обновление бронирования - одобрение - все хорошо")
     public void testUpdateAllOkApprove() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //одобрили
-        BookingDto result = bookingService.update(savedBooking.getId(), savedOwner.getId(), true);
+        BookingDto result = bookingService.update(savedBooking.getId(), owner.getId(), true);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(BookingProcessState.APPROVED, result.getStatus());
         Assertions.assertEquals(savedBooking.getId(), result.getId());
@@ -203,14 +198,14 @@ public class BookingServiceTest {
     @DisplayName("Обновление бронирования - отказ - все хорошо")
     public void testUpdateAllOkReject() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //не одобрили
-        BookingDto result = bookingService.update(savedBooking.getId(), savedOwner.getId(), false);
+        BookingDto result = bookingService.update(savedBooking.getId(), owner.getId(), false);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(BookingProcessState.REJECTED, result.getStatus());
         Assertions.assertEquals(savedBooking.getId(), result.getId());
@@ -223,9 +218,9 @@ public class BookingServiceTest {
     @Test
     @DisplayName("Обновление бронирования - неверное бронирование")
     public void testUpdateWrongId() {
-        UserDto savedOwner = userService.save(owner);
+        em.persist(owner);
         try {
-            bookingService.update(999L, savedOwner.getId(), false);
+            bookingService.update(999L, owner.getId(), false);
         } catch (NotFoundException e) {
             Assertions.assertEquals("Бронирование с id = 999 не найдено", e.getMessage());
         }
@@ -235,12 +230,12 @@ public class BookingServiceTest {
     @DisplayName("Обновление бронирования - неправильный пользователь")
     public void testUpdateWrongOwnerId() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         try {
             bookingService.update(savedBooking.getId(), 999L, false);
         } catch (WrongUserException e) {
@@ -252,14 +247,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск по id от владельца - все хорошо")
     public void testFindByIdAllOkByOwnerId() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //ищем
-        BookingDto result = bookingService.findById(savedBooking.getId(), savedOwner.getId());
+        BookingDto result = bookingService.findById(savedBooking.getId(), owner.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(BookingProcessState.WAITING, result.getStatus());
         Assertions.assertEquals(savedBooking.getId(), result.getId());
@@ -273,14 +268,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск по id от букера - все хорошо")
     public void testFindByIdAllOkByBookerId() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //ищем
-        BookingDto result = bookingService.findById(savedBooking.getId(), savedBooker.getId());
+        BookingDto result = bookingService.findById(savedBooking.getId(), booker.getId());
         Assertions.assertNotNull(result);
         Assertions.assertEquals(BookingProcessState.WAITING, result.getStatus());
         Assertions.assertEquals(savedBooking.getId(), result.getId());
@@ -294,12 +289,12 @@ public class BookingServiceTest {
     @DisplayName("Поиск по id - неверный пользователь")
     public void testFindByIdWrongUserId() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         try {
             bookingService.findById(savedBooking.getId(), 999L);
         } catch (WrongUserException e) {
@@ -312,28 +307,28 @@ public class BookingServiceTest {
     @DisplayName("Поиск прошедших бронирований - все хорошо")
     public void testFindPastBookingByBookerIdAndItemId() throws InterruptedException {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
         //задержка в 5 сек, чтобы найти бронь в прошлом
         TimeUnit.SECONDS.sleep(TIMEOUT);
-        bookingService.findPastBookingByBookerIdAndItemId(savedBooker.getId(), savedItem.getId());
+        bookingService.findPastBookingByBookerIdAndItemId(booker.getId(), item.getId());
     }
 
     @Test
     @DisplayName("Поиск прошедших бронирований - нет бронирования")
     public void testFindPastBookingByBookerIdAndItemIdNoBooking() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
         try {
-            bookingService.findPastBookingByBookerIdAndItemId(savedBooker.getId(), savedItem.getId());
+            bookingService.findPastBookingByBookerIdAndItemId(booker.getId(), item.getId());
         } catch (BadRequestException e) {
             Assertions.assertEquals("Бронирование этой вещи данным пользователем не найдено", e.getMessage());
         }
@@ -343,15 +338,15 @@ public class BookingServiceTest {
     @DisplayName("Поиск прошедших бронирований - бронирование в будущем")
     public void testFindPastBookingByBookerIdAndItemIdBookingInFuture() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронь в будущем
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDtoFuture, booker.getId());
         try {
-            bookingService.findPastBookingByBookerIdAndItemId(savedBooker.getId(), savedItem.getId());
+            bookingService.findPastBookingByBookerIdAndItemId(booker.getId(), item.getId());
         } catch (BadRequestException e) {
             Assertions.assertEquals("Бронирование этой вещи данным пользователем не найдено", e.getMessage());
         }
@@ -361,14 +356,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по вещи и состоянию")
     public void testFindByItemIdAndState() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //ищем в состоянии ожидания
-        List<BookingDto> result = bookingService.findByItemIdAndState(savedItem.getId(), BookingProcessState.WAITING);
+        List<BookingDto> result = bookingService.findByItemIdAndState(item.getId(), BookingProcessState.WAITING);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -383,14 +378,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по вещи и состоянию - нет бронирования")
     public void testFindByItemIdAndStateNoBooking() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
         //ищем одобренное
-        List<BookingDto> result = bookingService.findByItemIdAndState(savedItem.getId(), BookingProcessState.APPROVED);
+        List<BookingDto> result = bookingService.findByItemIdAndState(item.getId(), BookingProcessState.APPROVED);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(0, result.size());
     }
@@ -399,14 +394,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по списку вещей и состоянию")
     public void testFindAllByItemIdInAndState() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         List<Long> itemIds = new ArrayList<>();
-        itemIds.add(savedItem.getId());
+        itemIds.add(item.getId());
         //ищем в состоянии ожидания
         List<BookingDto> result = bookingService.findAllByItemIdInAndState(itemIds, BookingProcessState.WAITING);
         Assertions.assertNotNull(result);
@@ -423,14 +418,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по списку вещей и состоянию - нет бронирования")
     public void testFindAllByItemIdInAndStateNoBooking() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
         List<Long> itemIds = new ArrayList<>();
-        itemIds.add(savedItem.getId());
+        itemIds.add(item.getId());
         //ищем одобренное
         List<BookingDto> result = bookingService.findAllByItemIdInAndState(itemIds, BookingProcessState.APPROVED);
         Assertions.assertNotNull(result);
@@ -441,14 +436,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - все")
     public void testFindByBookerIdAndStateAll() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //ищем все
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.ALL);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.ALL);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -463,16 +458,16 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - все - 2 вещи")
     public void testFindByBookerIdAndStateAll2() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.update(savedBooking1.getId(), savedOwner.getId(), true);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDto, booker.getId());
+        bookingService.update(savedBooking1.getId(), owner.getId(), true);
         //ищем все
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.ALL);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.ALL);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(2, result.size());
     }
@@ -481,16 +476,16 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - ожидающие")
     public void testFindByBookerIdAndStateWAITING() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.update(savedBooking1.getId(), savedOwner.getId(), true);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDto, booker.getId());
+        bookingService.update(savedBooking1.getId(), owner.getId(), true);
         //ищем в состоянии ожидания - это 1 из 2
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.WAITING);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.WAITING);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -505,16 +500,16 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - отклоненные")
     public void testFindByBookerIdAndStateREJECTED() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.update(savedBooking1.getId(), savedOwner.getId(), false);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDto, booker.getId());
+        bookingService.update(savedBooking1.getId(), owner.getId(), false);
         //ищем в состоянии отклонено - это 1 из 2
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.REJECTED);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.REJECTED);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.REJECTED, result.getFirst().getStatus());
@@ -529,18 +524,18 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - будущие")
     public void testFindByBookerIdAndStateFUTURE() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронирование
-        newBookingDto.setItemId(savedItem.getId());
+        newBookingDto.setItemId(item.getId());
         //бронь в будущем
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDtoFuture, booker.getId());
         //ищем бронь в будущем- это 1из 2
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.FUTURE);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.FUTURE);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -555,20 +550,20 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - текущие")
     public void testFindByBookerIdAndStateCURRENT() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронирование текущее - закончится завтра
-        newBookingDto.setItemId(savedItem.getId());
+        newBookingDto.setItemId(item.getId());
         newBookingDto.setStart(date)
                 .setEnd(date.plusDays(1).plusSeconds(2));
         //бронь в будущем целиком
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
+        bookingService.save(newBookingDtoFuture, booker.getId());
         //ищем бронь текущую - это 1 из 2
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.CURRENT);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.CURRENT);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -583,19 +578,19 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по букеру и состоянию - прошедшие")
     public void testFindByBookerIdAndStatePAST() throws InterruptedException {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронь в прошлом
-        newBookingDto.setItemId(savedItem.getId());
+        newBookingDto.setItemId(item.getId());
         //бронь в будущем
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
+        bookingService.save(newBookingDtoFuture, booker.getId());
         //задержка в 5 сек чтобы найти бронь в прошлом
         TimeUnit.SECONDS.sleep(TIMEOUT);
-        List<BookingDto> result = bookingService.findByBookerIdAndState(savedBooker.getId(), BookingStateSearch.PAST);
+        List<BookingDto> result = bookingService.findByBookerIdAndState(booker.getId(), BookingStateSearch.PAST);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -610,14 +605,14 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - все")
     public void testFindByOwnerIdAndStateAll() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
         //ищем все
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.ALL);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.ALL);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -632,16 +627,16 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - все - 2 вещи")
     public void testFindByOwnerIdAndStateAll2() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.update(savedBooking1.getId(), savedOwner.getId(), true);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDto, booker.getId());
+        bookingService.update(savedBooking1.getId(), owner.getId(), true);
         //ищем все
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.ALL);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.ALL);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(2, result.size());
     }
@@ -650,16 +645,16 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - ожидающие")
     public void testFindByOwnerIdAndStateWAITING() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.update(savedBooking1.getId(), savedOwner.getId(), true);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDto, booker.getId());
+        bookingService.update(savedBooking1.getId(), owner.getId(), true);
         //ищем в состоянии ожидания - это 1 из 2
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.WAITING);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.WAITING);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -674,16 +669,16 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - отклоненные")
     public void testFindByOwnerIdAndStateREJECTED() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
-        newBookingDto.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.update(savedBooking1.getId(), savedOwner.getId(), false);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
+        newBookingDto.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDto, booker.getId());
+        bookingService.update(savedBooking1.getId(), owner.getId(), false);
         //ищем в состоянии отклонено - это 1 из 2
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.REJECTED);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.REJECTED);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.REJECTED, result.getFirst().getStatus());
@@ -698,18 +693,18 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - будущие")
     public void testFindByOwnerIdAndStateFUTURE() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронирование
-        newBookingDto.setItemId(savedItem.getId());
+        newBookingDto.setItemId(item.getId());
         //бронь в будущем
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        bookingService.save(newBookingDto, savedBooker.getId());
-        BookingDto savedBooking1 = bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        bookingService.save(newBookingDto, booker.getId());
+        BookingDto savedBooking1 = bookingService.save(newBookingDtoFuture, booker.getId());
         //ищем бронь в будущем- это 1из 2
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.FUTURE);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.FUTURE);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -724,20 +719,20 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - текущие")
     public void testFindByOwnerIdAndStateCURRENT() {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронирование текущее - закончится завтра
-        newBookingDto.setItemId(savedItem.getId());
+        newBookingDto.setItemId(item.getId());
         newBookingDto.setStart(date)
                 .setEnd(date.plusDays(1).plusSeconds(2));
         //бронь в будущем целиком
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
+        bookingService.save(newBookingDtoFuture, booker.getId());
         //ищем бронь текущую - это 1 из 2
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.CURRENT);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.CURRENT);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
@@ -752,19 +747,19 @@ public class BookingServiceTest {
     @DisplayName("Поиск броней по владельцу и состоянию - прошедшие")
     public void testFindByOwnerIdAndStatePAST() throws InterruptedException {
         //владелец-вещь-букер-бронирование
-        UserDto savedOwner = userService.save(owner);
-        item.setUser(UserMapper.mapToUser(savedOwner));
-        Item savedItem = itemRepository.save(item);
+        em.persist(owner);
+        item.setUser(owner);
+        em.persist(item);
         //бронь в прошлом
-        newBookingDto.setItemId(savedItem.getId());
+        newBookingDto.setItemId(item.getId());
         //бронь в будущем
-        newBookingDtoFuture.setItemId(savedItem.getId());
-        UserDto savedBooker = userService.save(booker);
-        BookingDto savedBooking = bookingService.save(newBookingDto, savedBooker.getId());
-        bookingService.save(newBookingDtoFuture, savedBooker.getId());
+        newBookingDtoFuture.setItemId(item.getId());
+        em.persist(booker);
+        BookingDto savedBooking = bookingService.save(newBookingDto, booker.getId());
+        bookingService.save(newBookingDtoFuture, booker.getId());
         //задержка в 5 сек чтобы найти бронь в прошлом
         TimeUnit.SECONDS.sleep(TIMEOUT);
-        List<BookingDto> result = bookingService.findByOwnerIdAndState(savedOwner.getId(), BookingStateSearch.PAST);
+        List<BookingDto> result = bookingService.findByOwnerIdAndState(owner.getId(), BookingStateSearch.PAST);
         Assertions.assertNotNull(result);
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals(BookingProcessState.WAITING, result.getFirst().getStatus());
